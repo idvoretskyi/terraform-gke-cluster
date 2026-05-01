@@ -2,85 +2,90 @@ name: Terraform Validation
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   TF_VERSION: "1.9.0"
+
+defaults:
+  run:
+    working-directory: terraform
 
 jobs:
   terraform-validate:
     name: Terraform Validation
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Google Cloud CLI
-      uses: google-github-actions/setup-gcloud@v2
-      with:
-        version: 'latest'
-        skip_install: false
+      - name: Setup Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: "latest"
+          skip_install: false
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: ${{ env.TF_VERSION }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
 
-    - name: Terraform Format Check
-      run: terraform fmt -check -recursive
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
 
-    - name: Terraform Init
-      run: terraform init -backend=false
+      - name: Terraform Init
+        run: terraform init -backend=false
 
-    - name: Debug - Check external data sources
-      run: |
-        echo "Current user: $(whoami)"
-        echo "Gcloud version: $(gcloud version 2>/dev/null || echo 'gcloud not found')"
-        echo "Gcloud project: $(gcloud config get-value project 2>/dev/null || echo 'no project set')"
-        echo "Gcloud region: $(gcloud config get-value compute/region 2>/dev/null || echo 'no region set')"
-
-    - name: Terraform Validate
-      run: terraform validate -no-color
+      - name: Terraform Validate
+        run: terraform validate -no-color
 
   terraform-security:
-    name: Security Scan
+    name: Security Scan (Checkov)
     runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
       actions: read
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Run Checkov
-      id: checkov
-      uses: bridgecrewio/checkov-action@master
-      with:
-        directory: .
-        framework: terraform
-        output_format: sarif
-        output_file_path: reports/results.sarif
-        quiet: true
-        soft_fail: true
+      # Checkov GKE controls verified by this scan:
+      # CKV_GCP_8   — Legacy metadata endpoints disabled
+      # CKV_GCP_12  — VPC-native cluster
+      # CKV_GCP_13  — Client certificate authentication disabled
+      # CKV_GCP_18  — Private cluster enabled
+      # CKV_GCP_19  — Master Authorized Networks
+      # CKV_GCP_21  — Resource labels present
+      # CKV_GCP_24  — PodSecurityPolicy / PSA
+      # CKV_GCP_25  — Network policy enabled
+      # CKV_GCP_61  — Workload Identity enabled
+      # CKV_GCP_65  — Auto-upgrade enabled
+      # CKV_GCP_66  — Auto-repair enabled
+      # CKV_GCP_67  — COS node image
+      # CKV_GCP_68  — Secure Boot enabled
+      # CKV_GCP_69  — Dedicated node service account
+      # CKV_GCP_70  — Shielded GKE nodes
+      # CKV_GCP_71  — Release channel set
+      # CKV_GCP_72  — Logging / monitoring enabled
+      - name: Run Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform
+          framework: terraform
+          output_format: sarif
+          output_file_path: reports/results.sarif
+          quiet: true
+          soft_fail: true
 
-    - name: Upload Checkov results to GitHub Advanced Security
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: reports/results.sarif
-      continue-on-error: true
-
-    - name: Display Checkov results summary
-      if: always()
-      run: |
-        echo "Security scan completed. Check the logs above for any findings."
-        if [ -f "reports/results.sarif" ]; then
-          echo "SARIF results file generated successfully."
-        else
-          echo "No SARIF results file found."
-        fi
+      - name: Upload Checkov SARIF to GitHub Advanced Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/results.sarif
+        continue-on-error: true

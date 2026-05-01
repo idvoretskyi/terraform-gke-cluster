@@ -1,22 +1,19 @@
 # Terraform
 .terraform/
-.terraform.lock.hcl
-terraform.tfstate*
+terraform.tfstate
 terraform.tfstate.backup
 *.tfplan
-*.tfplan.*
 
 # Terraform logs
-*.log
 crash.log
 crash.*.log
 
-# Terraform variables (if containing sensitive data)
+# Local variable overrides (may contain sensitive data)
 terraform.tfvars
 *.auto.tfvars
 *.auto.tfvars.json
 
-# Terraform backend configuration (if containing sensitive data)
+# Terraform backend config (may contain credentials)
 backend.tf
 
 # IDE and editor files
@@ -40,19 +37,17 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# kubectl config (if storing locally)
+# kubectl config
 kubeconfig
 *.kubeconfig
 
-# Go binaries and build artifacts
+# Go binaries
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 sample-workloads/rock-paper-scissors-game/rock-paper-scissors-game
-
-# Go test files
 *.test
 *.out
 go.sum
