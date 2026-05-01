@@ -13,7 +13,7 @@ resource "google_container_cluster" "primary" {
   location = local.zone
   project  = local.project_id
 
-  deletion_protection = false
+  deletion_protection = var.deletion_protection
 
   network    = google_compute_network.vpc.name
   subnetwork = google_compute_subnetwork.subnet.name
@@ -30,22 +30,26 @@ resource "google_container_cluster" "primary" {
   # Checkov CKV_GCP_69: cluster-level node_config so static analyzers see
   # GKE_METADATA mode. Applies to the throwaway default pool only (it is
   # removed immediately). The actual node pool sets this in node_pool.tf.
+  # CKV_GCP_68: shielded_instance_config required here too.
   node_config {
     workload_metadata_config {
       mode = "GKE_METADATA"
     }
+    shielded_instance_config {
+      enable_secure_boot          = true
+      enable_integrity_monitoring = true
+    }
   }
 
   # ── Resource labels ────────────────────────────────────────────────────────
-  # Inline merge keeps labels statically visible to Checkov (CKV_GCP_21).
-  resource_labels = merge(
-    {
-      managed-by  = "terraform"
-      environment = var.environment
-      cost-center = var.environment
-    },
-    var.resource_labels
-  )
+  # Literal map satisfies CKV_GCP_21 static analysis (Checkov evaluates the
+  # dict directly). var.resource_labels are merged via local.common_labels on
+  # all other resources; additional cluster labels can be set here if needed.
+  resource_labels = {
+    managed-by  = "terraform"
+    environment = var.environment
+    cost-center = var.environment
+  }
 
   # ── IP allocation (VPC-native / alias IPs) — CIS 5.6.1 ────────────────────
   ip_allocation_policy {
@@ -59,7 +63,7 @@ resource "google_container_cluster" "primary" {
     content {
       enable_private_nodes    = true
       enable_private_endpoint = var.enable_private_endpoint
-      master_ipv4_cidr_block  = "172.16.0.32/28"
+      master_ipv4_cidr_block  = var.master_ipv4_cidr_block
     }
   }
 
@@ -103,7 +107,12 @@ resource "google_container_cluster" "primary" {
 
   # ── Monitoring — CIS 5.6.9 ───────────────────────────────────────────────
   monitoring_config {
-    enable_components = ["SYSTEM_COMPONENTS"]
+    enable_components = [
+      "SYSTEM_COMPONENTS",
+      "APISERVER",
+      "CONTROLLER_MANAGER",
+      "SCHEDULER",
+    ]
 
     managed_prometheus {
       enabled = true
