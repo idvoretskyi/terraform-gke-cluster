@@ -1,254 +1,195 @@
-# GKE Terraform Cluster
+# terraform-gke-cluster
 
-## Description
+[![Terraform Validation](https://github.com/idvoretskyi/terraform-gke-cluster/actions/workflows/terraform-validate.yml/badge.svg)](https://github.com/idvoretskyi/terraform-gke-cluster/actions/workflows/terraform-validate.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.9-623CE4.svg)](https://www.terraform.io)
+[![Google Provider](https://img.shields.io/badge/google%20provider-~%3E6.0-4285F4.svg)](https://registry.terraform.io/providers/hashicorp/google/latest)
+[![GKE](https://img.shields.io/badge/GKE-RAPID%20channel-34A853.svg)](https://cloud.google.com/kubernetes-engine)
 
-This Terraform module creates a Google Kubernetes Engine (GKE) cluster with autoscaling capabilities, preemptible nodes, and proper security configurations.
+Terraform configuration for a cost-optimised, CIS-hardened GKE cluster on Google Cloud.
+Auto-detects your active `gcloud` project, zone, and username — no required variables.
 
 ## Features
 
-- **Ultra Cost-Optimized**: Uses e2-micro instances, spot VMs, and minimal disk sizes
-- **Preemptible + Spot Instances**: Maximum cost savings with preemptible and spot nodes
-- **Minimal Resource Usage**: 20GB standard disks, reduced OAuth scopes
-- **Dynamic Naming**: Cluster names use your username with random suffix
-- **Auto-scaling**: Configurable min/max node counts for cost control
-- **Security**: Best practices with disabled legacy endpoints
+- **Zero required variables** — project, zone, region, and cluster name derived from `gcloud` config
+- **Cost-optimised defaults** — spot instances, e2-micro, 20 GB standard disk, min 1 node
+- **RAPID release channel** — always on the latest GKE version
+- **CIS GKE Benchmark** — shielded nodes, Workload Identity, private cluster, network policy, VPC flow logs, disabled legacy endpoints
+- **Expandable monitoring** — Managed Prometheus + APISERVER / CONTROLLER_MANAGER / SCHEDULER components
+- **CMEK opt-in** — database encryption and boot disk KMS keys off by default, easy to enable
+- **Parameterised networking** — subnet, pod, and service CIDRs all configurable
+- **Dedicated node SA** — minimal IAM roles, no default Compute Engine SA
+- **Binary Authorization** — opt-in per environment
 
 ## Prerequisites
 
-- [Terraform](https://www.terraform.io/downloads.html) >= 1.0
-- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
-- GCP project with the following APIs enabled:
-  - Kubernetes Engine API
-  - Compute Engine API
+| Tool | Minimum version |
+|------|----------------|
+| [Terraform](https://developer.hashicorp.com/terraform/install) | 1.9 |
+| [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) | any recent |
+| GCP project | with billing enabled |
+
+Required APIs are enabled automatically by the configuration.
 
 ## Quick Start
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd gke-terraform-cluster
-   ```
+```bash
+# 1. Clone
+git clone https://github.com/idvoretskyi/terraform-gke-cluster.git
+cd terraform-gke-cluster
 
-2. **Authenticate with GCP:**
-   ```bash
-   gcloud auth application-default login
-   ```
+# 2. Authenticate
+gcloud auth application-default login
+gcloud config set project YOUR_PROJECT_ID   # or pass -var="project_id=..."
 
-3. **Initialize Terraform:**
-   ```bash
-   terraform init
-   ```
+# 3. Init & apply (development defaults)
+cd terraform
+terraform init
+terraform apply -var-file=environments/dev.tfvars
 
-4. **Plan the deployment:**
-   ```bash
-   # Auto-detects current gcloud project
-   terraform plan
-   
-   # Or specify a different project
-   terraform plan -var="project_id=your-gcp-project-id"
-   ```
+# 4. Configure kubectl
+$(terraform output -raw kubeconfig_command)
+```
 
-5. **Apply the configuration:**
-   ```bash
-   # Auto-detects current gcloud project
-   terraform apply
-   
-   # Or specify a different project
-   terraform apply -var="project_id=your-gcp-project-id"
-   ```
+### Environment-specific deploys
 
-The module will automatically:
-- **Auto-detect your current gcloud project** (can be overridden with project_id variable)
-- Create a cluster name prefixed with your username (e.g., `idv-gke-cluster-abc123`)
-- Use the detected or specified project_id for all GCP resources
+```bash
+# Development — spot instances, public endpoint, RAPID channel
+terraform apply -var-file=environments/dev.tfvars
+
+# Production — regular instances, private endpoint, binary auth
+terraform apply -var-file=environments/prod.tfvars
+```
+
+See [`terraform/environments/`](terraform/environments/) for the full files and comments.
 
 ## Configuration
 
 ### Variables
 
-The following variables can be configured:
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `project_id` | `string` | auto-detected | GCP project ID |
+| `cluster_name_suffix` | `string` | auto-detected | Suffix appended to username for cluster name |
+| `environment` | `string` | `"dev"` | `dev` / `staging` / `prod` — used in labels |
+| `deletion_protection` | `bool` | `false` | Prevent accidental cluster deletion |
+| `machine_type` | `string` | `"e2-micro"` | Node machine type |
+| `min_nodes` | `number` | `1` | Autoscaler minimum |
+| `max_nodes` | `number` | `3` | Autoscaler maximum |
+| `node_pool_disk_size` | `number` | `20` | Boot disk size (GB) |
+| `node_pool_disk_type` | `string` | `"pd-standard"` | `pd-standard` / `pd-balanced` / `pd-ssd` |
+| `enable_spot_instances` | `bool` | `true` | Spot VMs for cost savings |
+| `release_channel` | `string` | `"RAPID"` | `RAPID` / `REGULAR` / `STABLE` |
+| `enable_private_cluster` | `bool` | `true` | Private nodes (no public node IPs) |
+| `enable_private_endpoint` | `bool` | `false` | Private control-plane endpoint (needs bastion/VPN) |
+| `master_authorized_networks` | `list(object)` | `[]` | CIDRs allowed to reach the API server |
+| `enable_network_policy` | `bool` | `true` | Kubernetes network policy (CIS 5.6.6) |
+| `rbac_security_group` | `string` | `null` | Google Group email for GKE RBAC (CIS 5.6.7) |
+| `enable_binary_authorization` | `bool` | `false` | Binary Authorization (CIS 5.1.4) |
+| `subnet_cidr` | `string` | `"10.10.0.0/24"` | Node subnet CIDR |
+| `pods_cidr` | `string` | `"10.36.0.0/14"` | Pod alias IP range |
+| `services_cidr` | `string` | `"10.40.0.0/20"` | Service cluster IP range |
+| `master_ipv4_cidr_block` | `string` | `"172.16.0.32/28"` | Control-plane private CIDR |
+| `database_encryption_key` | `string` | `null` | KMS key for secrets encryption (CIS 5.8.1) |
+| `boot_disk_kms_key` | `string` | `null` | KMS key for node boot disk CMEK (CIS 5.3.1) |
+| `resource_labels` | `map(string)` | `{}` | Extra labels merged onto all resources |
 
-| Variable | Description | Type | Default |
-|----------|-------------|------|---------|
-| `project_id` | The GCP project ID where the cluster will be created (defaults to current gcloud project) | `string` | Auto-detected |
-| `region` | The GCP region where the cluster will be created | `string` | `"us-central1"` |
-| `cluster_name_suffix` | Suffix for the cluster name (username prefix added automatically) | `string` | `"gke-cluster"` |
-| `machine_type` | The machine type for the GKE nodes (cost-optimized default) | `string` | `"e2-micro"` |
-| `min_nodes` | The minimum number of nodes in the node pool | `number` | `1` |
-| `max_nodes` | The maximum number of nodes in the node pool | `number` | `3` |
+### Outputs
 
-### Example terraform.tfvars
+| Output | Sensitive | Description |
+|--------|-----------|-------------|
+| `cluster_name` | no | GKE cluster name |
+| `cluster_id` | no | Full resource ID |
+| `cluster_zone` | no | Zone of the cluster |
+| `cluster_region` | no | Region of the cluster |
+| `cluster_location` | no | Location from cluster resource |
+| `cluster_endpoint` | **yes** | Control-plane endpoint |
+| `cluster_ca_certificate` | **yes** | Base64-encoded CA cert |
+| `master_version` | no | Kubernetes version on the control plane |
+| `node_pool_instance_group_urls` | no | Instance group URLs |
+| `node_service_account_email` | no | Dedicated node SA email |
+| `project_id` | no | GCP project in use |
+| `kubeconfig_command` | no | Ready-to-run `gcloud` kubectl config command |
 
-```hcl
-# Optional: Override auto-detected project
-# project_id           = "my-gcp-project-id"
+### Auto-detection chain
 
-# Optional variables - these are just examples of customizations
-region               = "us-central1"
-cluster_name_suffix  = "my-cluster"
-machine_type         = "e2-medium"
-min_nodes           = 2
-max_nodes           = 5
+The module resolves missing values at plan time via a single `gcloud config list` call:
+
+```
+project_id   → var.project_id   → gcloud core/project    → "your-project-id-here"
+zone         →                    gcloud compute/zone     → "us-central1-a"
+region       →                    gcloud compute/region   → derived from zone
+username     →                    gcloud account (prefix) → "user"
+name_suffix  → var.cluster_name_suffix → gcloud container/cluster → "gke-cluster"
 ```
 
-## Outputs
+`terraform plan` works fully offline; the gcloud script never exits non-zero.
 
-| Output | Description |
-|--------|-------------|
-| `cluster_name` | The name of the GKE cluster |
-| `cluster_endpoint` | The endpoint of the GKE cluster |
-| `cluster_ca_certificate` | The cluster CA certificate (base64 encoded) |
-| `cluster_location` | The location of the GKE cluster |
-| `cluster_id` | The ID of the GKE cluster |
-| `master_version` | The version of Kubernetes used by the GKE cluster |
-| `node_pool_instance_group_urls` | List of instance group URLs for the node pools |
-| `kubeconfig_command` | Command to configure kubectl for this cluster |
-| `project_id` | The GCP project ID being used |
+## Environment Comparison
 
-## Connecting to the Cluster
+| Feature | dev | prod |
+|---------|-----|------|
+| Machine type | e2-micro | e2-standard-2 |
+| Spot instances | ✅ | ❌ |
+| Min / Max nodes | 1 / 3 | 2 / 10 |
+| Disk | 20 GB pd-standard | 50 GB pd-balanced |
+| Private endpoint | ❌ | ✅ |
+| Binary Authorization | ❌ | ✅ |
+| Master authorized networks | 0.0.0.0/0 | RFC-1918 only |
+| Release channel | RAPID | RAPID |
+| deletion_protection | false | true (set manually) |
 
-After deployment, use the output command to configure kubectl:
+## CIS GKE Benchmark coverage
 
-```bash
-# Get the command from Terraform output
-terraform output kubeconfig_command
+| Control | Description | Status |
+|---------|-------------|--------|
+| CKV_GCP_8 | Legacy metadata endpoints disabled | ✅ |
+| CKV_GCP_12 | VPC-native cluster | ✅ |
+| CKV_GCP_13 | Client certificate authentication disabled | ✅ |
+| CKV_GCP_18 | Private cluster enabled | ✅ |
+| CKV_GCP_21 | Resource labels present | ✅ |
+| CKV_GCP_25 | Network policy enabled | ✅ |
+| CKV_GCP_61 | Workload Identity enabled | ✅ |
+| CKV_GCP_65 | Auto-upgrade enabled | ✅ |
+| CKV_GCP_66 | Auto-repair enabled | ✅ |
+| CKV_GCP_67 | COS_CONTAINERD node image | ✅ |
+| CKV_GCP_68 | Secure Boot enabled | ✅ |
+| CKV_GCP_69 | Dedicated node SA / GKE_METADATA mode | ✅ |
+| CKV_GCP_70 | Shielded GKE nodes | ✅ |
+| CKV_GCP_71 | Release channel set | ✅ |
+| CKV_GCP_72 | Logging and monitoring enabled | ✅ |
 
-# Or manually:
-gcloud container clusters get-credentials <cluster-name> --region <region> --project <project-id>
-```
-
-## Cleanup
-
-To destroy the cluster and all associated resources:
-
-```bash
-terraform destroy
-```
-
-## Cost Optimization Features
-
-- **e2-micro instances**: Smallest available machine type for maximum savings
-- **Preemptible + Spot VMs**: Up to 91% cost savings vs regular instances
-- **20GB standard disks**: Minimal disk size with standard (not SSD) storage
-- **Minimal OAuth scopes**: Only essential permissions to reduce attack surface
-- **STABLE release channel**: Predictable updates, no premium for latest features
-- **No cluster autoscaling**: Simplified scaling to avoid unexpected costs
-- **Resource labels**: Cost tracking and management tags
-
-## CI/CD and Testing
-
-This repository includes a GitHub Actions workflow for automated code validation:
-
-### Workflow
-
-#### 🔍 **Terraform Validation** (`terraform-validate.yml`)
-- **Triggers**: Push to main/develop, Pull requests to main
-- **Features**:
-  - Terraform format checking
-  - Configuration validation
-  - Security scanning with Checkov
-  - Documentation validation
-- **Purpose**: Ensures code quality and security before deployment
-
-### Testing Locally
-
-Run validation checks locally:
+## Local validation
 
 ```bash
-# Format check
+cd terraform
+
+# Format
 terraform fmt -check -recursive
 
-# Validate configuration
+# Validate (no real GCP calls)
 terraform init -backend=false
 terraform validate
 
-# Security scan (requires Checkov)
+# Security scan (requires checkov)
 pip install checkov
 checkov -d . --framework terraform
 ```
 
-## Security Considerations
+## Cleanup
 
-- Legacy endpoints are disabled for security
-- Auto-repair and auto-upgrade are enabled
-- Minimal OAuth scopes for reduced attack surface
-- Resource labels for compliance and tracking
-- Automated security scanning in CI/CD pipeline
-
-## 🎯 Environment-Specific Deployments
-
-This project supports multiple environments with different configurations:
-
-### Quick Environment Setup
-
-#### Development Environment
 ```bash
-# Use development settings (less secure, cost-optimized)
-cp terraform.tfvars.dev terraform.tfvars
-terraform plan
-terraform apply
+terraform destroy -var-file=environments/dev.tfvars
 ```
-
-#### Production Environment
-```bash
-# Use production settings (enhanced security, performance-optimized)
-cp terraform.tfvars.prod terraform.tfvars
-terraform plan
-terraform apply
-```
-
-### Environment Differences
-
-| Feature | Development | Production |
-|---------|-------------|------------|
-| **Instance Type** | e2-micro | e2-standard-2 |
-| **Spot Instances** | ✅ Enabled | ❌ Disabled |
-| **Private Endpoint** | ❌ Disabled | ✅ Enabled |
-| **Binary Authorization** | ❌ Disabled | ✅ Enabled |
-| **Disk Type** | pd-standard | pd-balanced |
-| **Disk Size** | 20GB | 50GB |
-| **Authorized Networks** | All (0.0.0.0/0) | Restricted |
-| **Release Channel** | REGULAR | REGULAR |
-
-### Advanced Configuration Variables
-
-The following variables can be customized in `terraform.tfvars`:
-
-| Variable | Type | Description | Default |
-|----------|------|-------------|---------|
-| `environment` | string | Environment name (dev/staging/prod) | `"dev"` |
-| `enable_private_cluster` | bool | Enable private cluster | `true` |
-| `enable_private_endpoint` | bool | Enable private endpoint | `false` |
-| `enable_network_policy` | bool | Enable network policies | `true` |
-| `enable_binary_authorization` | bool | Enable binary authorization | `false` |
-| `release_channel` | string | GKE release channel | `"REGULAR"` |
-| `enable_spot_instances` | bool | Use spot instances | `true` |
-| `master_authorized_networks` | list | Master authorized networks | See examples |
-
-### Security Best Practices
-
-#### Development Security
-- Private cluster with public endpoint for easy access
-- Network policies enabled for container security
-- Basic master authorized networks (can be opened for development)
-- Spot instances for cost optimization
-
-#### Production Security
-- Private cluster with private endpoint (requires bastion/VPN)
-- Binary Authorization for container image security
-- Restricted master authorized networks
-- Regular instances for stability
-- Enhanced disk performance and size
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Ensure all CI/CD checks pass
-5. Test thoroughly (automated tests will run)
-6. Submit a pull request
+2. Create a feature branch (`git checkout -b feat/my-change`)
+3. Commit with sign-off (`git commit -s -m "feat: my change"`)
+4. Push and open a pull request against `main`
+5. All CI checks must pass
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+[MIT](LICENSE) © 2024-2026 idvoretskyi
