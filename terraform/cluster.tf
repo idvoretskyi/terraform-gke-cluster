@@ -27,8 +27,25 @@ resource "google_container_cluster" "primary" {
   remove_default_node_pool = true
   initial_node_count       = 1
 
+  # Checkov CKV_GCP_69: cluster-level node_config so static analyzers see
+  # GKE_METADATA mode. Applies to the throwaway default pool only (it is
+  # removed immediately). The actual node pool sets this in node_pool.tf.
+  node_config {
+    workload_metadata_config {
+      mode = "GKE_METADATA"
+    }
+  }
+
   # ── Resource labels ────────────────────────────────────────────────────────
-  resource_labels = local.common_labels
+  # Inline merge keeps labels statically visible to Checkov (CKV_GCP_21).
+  resource_labels = merge(
+    {
+      managed-by  = "terraform"
+      environment = var.environment
+      cost-center = var.environment
+    },
+    var.resource_labels
+  )
 
   # ── IP allocation (VPC-native / alias IPs) — CIS 5.6.1 ────────────────────
   ip_allocation_policy {
