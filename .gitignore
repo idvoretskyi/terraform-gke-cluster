@@ -12,6 +12,8 @@ crash.*.log
 terraform.tfvars
 *.auto.tfvars
 *.auto.tfvars.json
+# Keep versioned environment files
+!terraform/environments/*.tfvars
 
 # Terraform backend config (may contain credentials)
 backend.tf
@@ -50,4 +52,3 @@ kubeconfig
 sample-workloads/rock-paper-scissors-game/rock-paper-scissors-game
 *.test
 *.out
-go.sum
