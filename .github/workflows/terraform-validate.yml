@@ -6,8 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: terraform-validate-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  TF_VERSION: "1.9.0"
+  TF_VERSION: "1.11.4"
 
 defaults:
   run:
@@ -21,12 +25,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup Google Cloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          version: "latest"
-          skip_install: false
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -68,13 +66,13 @@ jobs:
       # CKV_GCP_66  — Auto-repair enabled
       # CKV_GCP_67  — COS node image
       # CKV_GCP_68  — Secure Boot enabled
-      # CKV_GCP_69  — Dedicated node service account
+      # CKV_GCP_69  — Dedicated node service account / GKE_METADATA mode
       # CKV_GCP_70  — Shielded GKE nodes
       # CKV_GCP_71  — Release channel set
       # CKV_GCP_72  — Logging / monitoring enabled
       - name: Run Checkov
         id: checkov
-        uses: bridgecrewio/checkov-action@master
+        uses: bridgecrewio/checkov-action@v12
         with:
           directory: terraform
           framework: terraform
