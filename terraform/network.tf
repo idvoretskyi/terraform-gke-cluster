@@ -10,7 +10,7 @@ resource "google_compute_network" "vpc" {
 # ── Subnet ────────────────────────────────────────────────────────────────────
 resource "google_compute_subnetwork" "subnet" {
   name          = "${local.base_name}-subnet"
-  ip_cidr_range = "10.10.0.0/24"
+  ip_cidr_range = var.subnet_cidr
   region        = local.region
   network       = google_compute_network.vpc.name
   project       = local.project_id
@@ -26,12 +26,12 @@ resource "google_compute_subnetwork" "subnet" {
 
   secondary_ip_range {
     range_name    = "pod-ranges"
-    ip_cidr_range = "10.36.0.0/14"
+    ip_cidr_range = var.pods_cidr
   }
 
   secondary_ip_range {
     range_name    = "services-range"
-    ip_cidr_range = "10.40.0.0/20"
+    ip_cidr_range = var.services_cidr
   }
 }
 
@@ -57,7 +57,7 @@ resource "google_compute_firewall" "allow_internal_pods" {
     protocol = "icmp"
   }
 
-  source_ranges = ["10.36.0.0/14", "10.40.0.0/20"]
+  source_ranges = [var.pods_cidr, var.services_cidr]
 }
 
 resource "google_compute_firewall" "allow_internal_nodes" {
@@ -79,5 +79,5 @@ resource "google_compute_firewall" "allow_internal_nodes" {
     protocol = "icmp"
   }
 
-  source_ranges = ["10.10.0.0/24"]
+  source_ranges = [var.subnet_cidr]
 }

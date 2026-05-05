@@ -21,36 +21,67 @@ variable "environment" {
   }
 }
 
+variable "deletion_protection" {
+  description = "Prevent accidental cluster deletion. Set to false for dev/test environments."
+  type        = bool
+  default     = false
+}
+
 # ── Node pool ─────────────────────────────────────────────────────────────────
 
 variable "machine_type" {
   description = "Machine type for GKE nodes."
   type        = string
   default     = "e2-micro"
+
+  validation {
+    condition     = length(var.machine_type) > 0
+    error_message = "machine_type must not be empty."
+  }
 }
 
 variable "min_nodes" {
   description = "Minimum number of nodes in the node pool."
   type        = number
   default     = 1
+
+  validation {
+    condition     = var.min_nodes >= 1
+    error_message = "min_nodes must be at least 1."
+  }
 }
 
 variable "max_nodes" {
   description = "Maximum number of nodes in the node pool."
   type        = number
   default     = 3
+
+  validation {
+    condition     = var.max_nodes >= 1
+    error_message = "max_nodes must be at least 1."
+  }
 }
 
 variable "node_pool_disk_size" {
   description = "Boot disk size for nodes (GB)."
   type        = number
   default     = 20
+
+  validation {
+    condition     = var.node_pool_disk_size >= 10
+    error_message = "node_pool_disk_size must be at least 10 GB."
+  }
 }
 
 variable "node_pool_disk_type" {
   description = "Boot disk type for nodes. One of: pd-standard, pd-balanced, pd-ssd."
   type        = string
   default     = "pd-standard"
+
+  validation {
+    condition     = contains(["pd-standard", "pd-balanced", "pd-ssd"], var.node_pool_disk_type)
+    error_message = "node_pool_disk_type must be one of: pd-standard, pd-balanced, pd-ssd."
+  }
 }
 
 variable "enable_spot_instances" {
@@ -109,6 +140,32 @@ variable "enable_binary_authorization" {
   description = "Enable Binary Authorization for container image verification (CIS 5.1.4)."
   type        = bool
   default     = false
+}
+
+# ── Networking CIDRs ──────────────────────────────────────────────────────────
+
+variable "subnet_cidr" {
+  description = "Primary CIDR range for the node subnet."
+  type        = string
+  default     = "10.10.0.0/24"
+}
+
+variable "pods_cidr" {
+  description = "Secondary CIDR range for pod IPs (alias IPs)."
+  type        = string
+  default     = "10.36.0.0/14"
+}
+
+variable "services_cidr" {
+  description = "Secondary CIDR range for service cluster IPs."
+  type        = string
+  default     = "10.40.0.0/20"
+}
+
+variable "master_ipv4_cidr_block" {
+  description = "CIDR block for the GKE control-plane private endpoint (/28 required)."
+  type        = string
+  default     = "172.16.0.32/28"
 }
 
 # ── CIS opt-in encryption ─────────────────────────────────────────────────────
