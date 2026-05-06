@@ -61,10 +61,10 @@ Full variable reference: [`terraform/variables.tf`](terraform/variables.tf)
 | Feature | dev | prod |
 |---------|-----|------|
 | Machine type | e2-micro | e2-standard-2 |
-| Spot instances | ✅ | ❌ |
+| Spot instances | yes | no |
 | Nodes (min/max) | 1 / 3 | 2 / 10 |
-| Private endpoint | ❌ | ✅ |
-| Binary Authorization | ❌ | ✅ |
+| Private endpoint | no | yes |
+| Binary Authorization | no | yes |
 
 ## Validation
 
