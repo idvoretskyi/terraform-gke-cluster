@@ -1,8 +1,11 @@
 # terraform-gke-cluster
 
 [![Terraform Validation](https://github.com/idvoretskyi/terraform-gke-cluster/actions/workflows/terraform-validate.yml/badge.svg)](https://github.com/idvoretskyi/terraform-gke-cluster/actions/workflows/terraform-validate.yml)
+[![Security Scan](https://img.shields.io/badge/security-trivy-1904DA.svg)](https://github.com/aquasecurity/trivy)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.9-623CE4.svg)](https://www.terraform.io)
+[![Google Provider](https://img.shields.io/badge/google%20provider-~%3E6.0-4285F4.svg)](https://registry.terraform.io/providers/hashicorp/google/latest)
+[![GKE](https://img.shields.io/badge/GKE-RAPID%20channel-34A853.svg)](https://cloud.google.com/kubernetes-engine)
 
 Terraform configuration for a cost-optimised, CIS-hardened GKE cluster on Google Cloud. Auto-detects your active `gcloud` project, zone, and username — no required variables.
 
