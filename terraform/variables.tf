@@ -10,24 +10,11 @@ variable "cluster_name_suffix" {
   default     = null
 }
 
-variable "environment" {
-  description = "Environment name used in resource labels."
-  type        = string
-  default     = "dev"
-
-  validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "environment must be one of: dev, staging, prod."
-  }
-}
-
 variable "deletion_protection" {
   description = "Prevent accidental cluster deletion. Set to false for dev/test environments."
   type        = bool
   default     = false
 }
-
-# ── Node pool ─────────────────────────────────────────────────────────────────
 
 variable "machine_type" {
   description = "Machine type for GKE nodes."
@@ -90,10 +77,8 @@ variable "enable_spot_instances" {
   default     = true
 }
 
-# ── Cluster ───────────────────────────────────────────────────────────────────
-
 variable "release_channel" {
-  description = "GKE release channel. RAPID receives the most recent Kubernetes versions."
+  description = "GKE release channel."
   type        = string
   default     = "RAPID"
 
@@ -116,12 +101,17 @@ variable "enable_private_endpoint" {
 }
 
 variable "master_authorized_networks" {
-  description = "CIDR blocks allowed to reach the cluster control plane. Empty = unrestricted (development only)."
+  description = "CIDR blocks allowed to reach the cluster control plane. Defaults to all networks — tighten to your office/VPN CIDR in shared environments."
   type = list(object({
     cidr_block   = string
     display_name = string
   }))
-  default = []
+  default = [
+    {
+      cidr_block   = "0.0.0.0/0"
+      display_name = "All networks — tighten to your CIDR"
+    }
+  ]
 }
 
 variable "enable_network_policy" {
@@ -141,8 +131,6 @@ variable "enable_binary_authorization" {
   type        = bool
   default     = false
 }
-
-# ── Networking CIDRs ──────────────────────────────────────────────────────────
 
 variable "subnet_cidr" {
   description = "Primary CIDR range for the node subnet."
@@ -168,8 +156,6 @@ variable "master_ipv4_cidr_block" {
   default     = "172.16.0.32/28"
 }
 
-# ── CIS opt-in encryption ─────────────────────────────────────────────────────
-
 variable "database_encryption_key" {
   description = "KMS key name for application-layer secrets encryption (CIS 5.8.1). Null = Google-managed key."
   type        = string
@@ -181,8 +167,6 @@ variable "boot_disk_kms_key" {
   type        = string
   default     = null
 }
-
-# ── Labels ────────────────────────────────────────────────────────────────────
 
 variable "resource_labels" {
   description = "Additional resource labels. These override module defaults when keys conflict."

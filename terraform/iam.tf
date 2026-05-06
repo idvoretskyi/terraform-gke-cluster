@@ -1,5 +1,4 @@
-# ── Dedicated node-pool service account ──────────────────────────────────────
-# CIS GKE 5.2.1: do not use the default Compute Engine service account.
+# CIS GKE 5.2.1: dedicated node-pool service account (not the default Compute Engine SA)
 resource "google_service_account" "node_sa" {
   account_id   = substr("${local.base_name}-node-sa", 0, 28)
   display_name = "GKE node pool SA for ${local.base_name}"
@@ -8,7 +7,6 @@ resource "google_service_account" "node_sa" {
   depends_on = [google_project_service.apis]
 }
 
-# Minimum roles required for GKE node pools.
 locals {
   node_sa_roles = toset([
     "roles/logging.logWriter",

@@ -1,4 +1,3 @@
-# ── Random suffix ─────────────────────────────────────────────────────────────
 resource "random_string" "suffix" {
   length  = 6
   upper   = false
@@ -7,7 +6,6 @@ resource "random_string" "suffix" {
   special = false
 }
 
-# ── GKE Cluster ───────────────────────────────────────────────────────────────
 resource "google_container_cluster" "primary" {
   name     = "${local.base_name}-${random_string.suffix.result}"
   location = local.zone
@@ -18,19 +16,13 @@ resource "google_container_cluster" "primary" {
   network    = google_compute_network.vpc.name
   subnetwork = google_compute_subnetwork.subnet.name
 
-  # ── Release channel ────────────────────────────────────────────────────────
   release_channel {
     channel = var.release_channel
   }
 
-  # Remove the default node pool; we manage it separately for flexibility.
   remove_default_node_pool = true
   initial_node_count       = 1
 
-  # Checkov CKV_GCP_69: cluster-level node_config so static analyzers see
-  # GKE_METADATA mode. Applies to the throwaway default pool only (it is
-  # removed immediately). The actual node pool sets this in node_pool.tf.
-  # CKV_GCP_68: shielded_instance_config required here too.
   node_config {
     workload_metadata_config {
       mode = "GKE_METADATA"
@@ -41,23 +33,17 @@ resource "google_container_cluster" "primary" {
     }
   }
 
-  # ── Resource labels ────────────────────────────────────────────────────────
-  # Literal map satisfies CKV_GCP_21 static analysis (Checkov evaluates the
-  # dict directly). var.resource_labels are merged via local.common_labels on
-  # all other resources; additional cluster labels can be set here if needed.
   resource_labels = {
-    managed-by  = "terraform"
-    environment = var.environment
-    cost-center = var.environment
+    managed-by = "terraform"
   }
 
-  # ── IP allocation (VPC-native / alias IPs) — CIS 5.6.1 ────────────────────
+  # CIS 5.6.1
   ip_allocation_policy {
     cluster_secondary_range_name  = "pod-ranges"
     services_secondary_range_name = "services-range"
   }
 
-  # ── Private cluster — CIS 5.6.3 / 5.6.4 ──────────────────────────────────
+  # CIS 5.6.3 / 5.6.4
   dynamic "private_cluster_config" {
     for_each = var.enable_private_cluster ? [1] : []
     content {
@@ -67,21 +53,18 @@ resource "google_container_cluster" "primary" {
     }
   }
 
-  # ── Master Authorized Networks — CIS 5.6.2 ────────────────────────────────
-  dynamic "master_authorized_networks_config" {
-    for_each = length(var.master_authorized_networks) > 0 ? [1] : []
-    content {
-      dynamic "cidr_blocks" {
-        for_each = var.master_authorized_networks
-        content {
-          cidr_block   = cidr_blocks.value.cidr_block
-          display_name = cidr_blocks.value.display_name
-        }
+  # CIS 5.6.2
+  master_authorized_networks_config {
+    dynamic "cidr_blocks" {
+      for_each = var.master_authorized_networks
+      content {
+        cidr_block   = cidr_blocks.value.cidr_block
+        display_name = cidr_blocks.value.display_name
       }
     }
   }
 
-  # ── Network policy — CIS 5.6.6 ────────────────────────────────────────────
+  # CIS 5.6.6
   dynamic "network_policy" {
     for_each = var.enable_network_policy ? [1] : []
     content {
@@ -89,23 +72,22 @@ resource "google_container_cluster" "primary" {
     }
   }
 
-  # ── Intranode visibility + VPC flow logs ──────────────────────────────────
   enable_intranode_visibility = true
 
-  # ── Workload Identity — CIS 5.2.2 ────────────────────────────────────────
+  # CIS 5.2.2
   workload_identity_config {
     workload_pool = local.workload_pool
   }
 
-  # ── Shielded Nodes (cluster-level) — CIS 5.5.5 ───────────────────────────
+  # CIS 5.5.5
   enable_shielded_nodes = true
 
-  # ── Logging — CIS 5.6.8 ───────────────────────────────────────────────────
+  # CIS 5.6.8
   logging_config {
     enable_components = ["SYSTEM_COMPONENTS", "WORKLOADS"]
   }
 
-  # ── Monitoring — CIS 5.6.9 ───────────────────────────────────────────────
+  # CIS 5.6.9
   monitoring_config {
     enable_components = [
       "SYSTEM_COMPONENTS",
@@ -119,14 +101,14 @@ resource "google_container_cluster" "primary" {
     }
   }
 
-  # ── Authentication — CIS 5.7.2 ────────────────────────────────────────────
+  # CIS 5.7.2
   master_auth {
     client_certificate_config {
       issue_client_certificate = false
     }
   }
 
-  # ── Binary Authorization — CIS 5.1.4 ─────────────────────────────────────
+  # CIS 5.1.4
   dynamic "binary_authorization" {
     for_each = var.enable_binary_authorization ? [1] : []
     content {
@@ -134,9 +116,7 @@ resource "google_container_cluster" "primary" {
     }
   }
 
-  # ── Google Groups for RBAC — CIS 5.6.7 / 5.8.2 ───────────────────────────
-  # Requires a Google Group to be pre-created. Set var.rbac_security_group to
-  # enable (e.g. "gke-security-groups@yourdomain.com").
+  # CIS 5.6.7 / 5.8.2
   dynamic "authenticator_groups_config" {
     for_each = var.rbac_security_group != null ? [1] : []
     content {
@@ -144,7 +124,6 @@ resource "google_container_cluster" "primary" {
     }
   }
 
-  # ── Cluster autoscaling (node auto-provisioning) ──────────────────────────
   cluster_autoscaling {
     enabled = true
     resource_limits {
@@ -159,7 +138,7 @@ resource "google_container_cluster" "primary" {
     }
   }
 
-  # ── Application-layer secrets encryption — CIS 5.8.1 (opt-in) ────────────
+  # CIS 5.8.1
   dynamic "database_encryption" {
     for_each = var.database_encryption_key != null ? [1] : []
     content {
@@ -168,7 +147,6 @@ resource "google_container_cluster" "primary" {
     }
   }
 
-  # ── Maintenance window ────────────────────────────────────────────────────
   maintenance_policy {
     recurring_window {
       start_time = "2025-01-01T02:00:00Z"
