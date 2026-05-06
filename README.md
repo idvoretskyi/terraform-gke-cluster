@@ -9,13 +9,29 @@
 
 Terraform configuration for a cost-optimised, CIS-hardened GKE cluster on Google Cloud. Auto-detects your active `gcloud` project, zone, and username — no required variables.
 
+## What you get
+
+- **Cost-optimised defaults** — e2-micro nodes, spot instances, 1–3 node autoscaling, pd-standard disks
+- **CIS-hardened** — master authorised networks, private nodes, network policy, shielded nodes, disabled legacy metadata endpoints
+- **Workload Identity** — pods authenticate to GCP APIs without node-level service account keys
+- **Shielded Nodes** — secure boot + integrity monitoring enabled on every node
+- **Zero-friction setup** — project, zone, region, and cluster name auto-detected from active `gcloud` config; no required variables
+- **Required APIs** enabled automatically on first `terraform apply`
+
+## Repo layout
+
+```
+terraform/               # GKE cluster — main Terraform configuration
+sample-workloads/
+  rock-paper-scissors-game/  # Go web app — Kustomize-based deploy example
+  nginx/                     # NGINX smoke test via Helm
+```
+
 ## Prerequisites
 
 - [Terraform](https://developer.hashicorp.com/terraform/install) ≥ 1.15
 - [Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
 - GCP project with billing enabled
-
-Required APIs are enabled automatically.
 
 ## Quick Start
 
@@ -29,7 +45,9 @@ gcloud config set project YOUR_PROJECT_ID
 terraform init
 terraform apply
 
-$(terraform output -raw kubeconfig_command)
+gcloud container clusters get-credentials $(terraform output -raw cluster_name) \
+  --zone $(terraform output -raw cluster_zone) \
+  --project $(terraform output -raw project_id)
 ```
 
 See [`terraform/environments/example.tfvars`](terraform/environments/example.tfvars) for all available overrides.
@@ -44,20 +62,13 @@ All variables have sensible defaults. The most commonly overridden ones:
 | `machine_type` | `"e2-micro"` | Node machine type |
 | `min_nodes` / `max_nodes` | `1` / `3` | Autoscaler bounds |
 | `enable_spot_instances` | `true` | Spot VMs for cost savings |
-| `master_authorized_networks` | `0.0.0.0/0` | CIDRs allowed to reach control plane — tighten for shared envs |
+| `master_authorized_networks` | `0.0.0.0/0` | CIDRs allowed to reach the control plane |
 | `enable_private_endpoint` | `false` | Private control-plane endpoint |
 | `enable_binary_authorization` | `false` | Binary Authorization |
 
 Full variable reference: [`terraform/variables.tf`](terraform/variables.tf)
 
-## Validation
-
-```bash
-cd terraform
-terraform fmt -check -recursive
-terraform init -backend=false && terraform validate
-trivy config .
-```
+> **Security note:** `master_authorized_networks` defaults to `0.0.0.0/0` for convenience. In shared or production environments, restrict this to your office or VPN CIDR.
 
 ## Cleanup
 
@@ -66,6 +77,20 @@ cd terraform
 terraform destroy
 ```
 
+> If `deletion_protection` was set to `true`, set it to `false` and run `terraform apply` before destroying.
+
 ## License
 
 [MIT](LICENSE) © 2024-2026 idvoretskyi
+
+<details>
+<summary>For contributors</summary>
+
+```bash
+cd terraform
+terraform fmt -check -recursive
+terraform init -backend=false && terraform validate
+trivy config .
+```
+
+</details>

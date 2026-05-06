@@ -1,47 +1,31 @@
 # Sample NGINX Workload
 
-This directory contains the sample NGINX application deployed to validate the GKE cluster functionality.
+NGINX smoke test deployed via Helm to validate basic GKE cluster functionality (load balancer provisioning, pod scheduling, external connectivity).
 
-## Deployment Details
-
-- **Application**: NGINX web server
-- **Chart**: bitnami/nginx (version 20.0.8)
-- **App Version**: 1.28.0
-- **Service Type**: LoadBalancer
-- **Replicas**: 2
-- **External IP**: http://104.196.125.40
-
-## Deployment Commands
+## Deploy
 
 ```bash
-# Add Bitnami repository
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 
-# Deploy NGINX
-helm install sample-nginx bitnami/nginx --set service.type=LoadBalancer --set replicaCount=2
+helm install sample-nginx bitnami/nginx \
+  --version 20.0.8 \
+  --set service.type=LoadBalancer \
+  --set replicaCount=2
 ```
 
-## Validation
+## Validate
 
 ```bash
-# Check pods
-kubectl get pods -l app.kubernetes.io/name=nginx
+# Wait for external IP
+kubectl get svc sample-nginx -w
 
-# Check service
-kubectl get svc sample-nginx
-
-# Test application
-curl -I http://104.196.125.40
+# Run once IP is assigned
+EXTERNAL_IP=$(kubectl get svc sample-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+curl -I http://$EXTERNAL_IP
 ```
 
-## Status
-
-✅ **Deployment Successful** - The cluster is working correctly and NGINX is responding to HTTP requests.
-
 ## Cleanup
-
-To remove the sample application:
 
 ```bash
 helm uninstall sample-nginx
