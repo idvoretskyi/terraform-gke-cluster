@@ -1,7 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workloads
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rock-paper-scissors-game
+  namespace: workloads
   labels:
     app: rock-paper-scissors-game
     version: "VERSION_TAG"
@@ -27,11 +33,14 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
-        fsGroup: 2000
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: rock-paper-scissors-game
-        image: gcr.io/PROJECT_ID/rock-paper-scissors-game:VERSION_TAG
+        image: rock-paper-scissors-game
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
@@ -56,10 +65,13 @@ spec:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
-          runAsUser: 1000
+          runAsUser: 65532
+          runAsGroup: 65532
           capabilities:
             drop:
             - ALL
+          seccompProfile:
+            type: RuntimeDefault
         livenessProbe:
           httpGet:
             path: /health
@@ -118,6 +130,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: rock-paper-scissors-service
+  namespace: workloads
   labels:
     app: rock-paper-scissors-game
   annotations:
@@ -137,6 +150,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: rock-paper-scissors-hpa
+  namespace: workloads
   labels:
     app: rock-paper-scissors-game
 spec:
@@ -177,6 +191,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: rock-paper-scissors-pdb
+  namespace: workloads
   labels:
     app: rock-paper-scissors-game
 spec:
@@ -189,6 +204,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: rock-paper-scissors-netpol
+  namespace: workloads
   labels:
     app: rock-paper-scissors-game
 spec:
@@ -205,7 +221,6 @@ spec:
     - protocol: TCP
       port: 8080
   egress:
-  # Allow DNS resolution to cluster DNS
   - to:
     - namespaceSelector:
         matchLabels:
@@ -215,7 +230,6 @@ spec:
       port: 53
     - protocol: UDP
       port: 53
-  # Allow external HTTP/HTTPS for container registry access during startup
   - to:
     - ipBlock:
         cidr: 0.0.0.0/0

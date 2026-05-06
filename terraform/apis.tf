@@ -1,7 +1,3 @@
-# Auto-enable all GCP APIs required by this module.
-# disable_on_destroy = false prevents accidental API disruption when the
-# cluster is destroyed but the project continues to be used.
-
 locals {
   required_apis = toset([
     "cloudresourcemanager.googleapis.com",

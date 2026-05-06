@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: workloads
+
+resources:
+  - deployment.yaml
+
+images:
+  - name: rock-paper-scissors-game
+    newName: gcr.io/YOUR_PROJECT_ID/rock-paper-scissors-game
+    newTag: latest

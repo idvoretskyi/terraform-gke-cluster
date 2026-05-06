@@ -1,12 +1,8 @@
-# Example variable overrides.
+# Optional overrides — all variables are auto-detected from gcloud config.
 # Copy to terraform.tfvars or pass with: -var-file=environments/example.tfvars
-#
-# All variables are optional — gcloud config is auto-detected for project,
-# zone, region, and username.
 
 # project_id          = "my-gcp-project-id"
 # cluster_name_suffix = "my-cluster"
-# environment         = "dev"
 # release_channel     = "RAPID"
 
 # machine_type          = "e2-micro"

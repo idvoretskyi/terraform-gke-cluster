@@ -1,0 +1,27 @@
+# Trivy ignore file
+# Findings suppressed here are false positives or intentional design decisions.
+
+# DS026: Dockerfile HEALTHCHECK
+# Health checks for this workload are enforced by Kubernetes liveness, readiness,
+# and startup probes defined in deployment.yaml. The Dockerfile HEALTHCHECK
+# instruction is not executed by Kubernetes and is therefore not applicable.
+AVD-DS-0026
+
+# KSV013: image tag not pinned in deployment.yaml
+# The image name and tag are set at deploy time by Kustomize (kustomization.yaml).
+# The bare image name in deployment.yaml is intentional — it is the Kustomize target.
+AVD-KSV-0013
+
+# GCP0072 / GCP0074: firewall allows all ports / large port range
+# The allow_internal_pods firewall rule intentionally allows all TCP/UDP ports
+# within the pod and service CIDRs. This is required for arbitrary inter-pod
+# communication. The security boundary is the source_ranges restriction to
+# pod/service CIDRs only — not the public internet.
+AVD-GCP-0072
+AVD-GCP-0074
+
+# GCP0050: node pool does not override default service account
+# A dedicated, minimally-privileged service account (google_service_account.node_sa)
+# is explicitly set on the node pool. Trivy cannot resolve the cross-resource
+# reference statically when scanning node_pool.tf in isolation.
+AVD-GCP-0050

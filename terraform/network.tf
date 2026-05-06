@@ -1,4 +1,3 @@
-# ── VPC ───────────────────────────────────────────────────────────────────────
 resource "google_compute_network" "vpc" {
   name                    = "${local.base_name}-vpc"
   auto_create_subnetworks = false
@@ -7,7 +6,6 @@ resource "google_compute_network" "vpc" {
   depends_on = [google_project_service.apis]
 }
 
-# ── Subnet ────────────────────────────────────────────────────────────────────
 resource "google_compute_subnetwork" "subnet" {
   name          = "${local.base_name}-subnet"
   ip_cidr_range = var.subnet_cidr
@@ -17,7 +15,7 @@ resource "google_compute_subnetwork" "subnet" {
 
   private_ip_google_access = true
 
-  # CIS 5.6.8 / VPC Flow Logs
+  # CIS 5.6.8
   log_config {
     aggregation_interval = "INTERVAL_10_MIN"
     flow_sampling        = 0.5
@@ -35,22 +33,26 @@ resource "google_compute_subnetwork" "subnet" {
   }
 }
 
-# ── Firewall: intra-cluster ───────────────────────────────────────────────────
-# Allow all traffic within pod CIDR (required for intra-pod communication).
-# Tighten the node subnet to GKE control-plane required ports only.
+# Allow all traffic within pod/service CIDRs for intra-pod communication.
+# Source ranges are scoped to pod and service CIDRs only — not the internet.
+# Wide TCP/UDP port range is required for arbitrary inter-pod communication;
+# narrowing would break workloads. Source CIDR scoping is the security boundary.
+# Findings GCP0072/GCP0074 suppressed in .trivyignore with rationale.
 resource "google_compute_firewall" "allow_internal_pods" {
   name        = "${local.base_name}-allow-pods"
   network     = google_compute_network.vpc.name
   project     = local.project_id
-  description = "Allow all traffic within the pod CIDR for intra-pod communication."
+  description = "Allow all traffic within the pod/service CIDRs for intra-pod communication."
   direction   = "INGRESS"
 
   allow {
     protocol = "tcp"
+    ports    = ["0-65535"]
   }
 
   allow {
     protocol = "udp"
+    ports    = ["0-65535"]
   }
 
   allow {
@@ -67,9 +69,6 @@ resource "google_compute_firewall" "allow_internal_nodes" {
   description = "Allow GKE control-plane required ports within the node subnet."
   direction   = "INGRESS"
 
-  # TCP 443  — Kubernetes API
-  # TCP 10250 — kubelet API (required by control plane)
-  # ICMP     — health checks and diagnostics
   allow {
     protocol = "tcp"
     ports    = ["443", "10250"]
