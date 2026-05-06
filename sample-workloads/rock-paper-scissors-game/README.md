@@ -1,6 +1,6 @@
 # Rock Paper Scissors Arena
 
-An interactive Rock Paper Scissors game with statistics tracking and a leaderboard, deployed on GKE.
+An interactive Rock Paper Scissors game with statistics tracking and a leaderboard, deployed on GKE. Part of the [`terraform-gke-cluster`](../../README.md) sample workloads.
 
 ## Endpoints
 
@@ -46,7 +46,7 @@ kustomize edit set image \
   rock-paper-scissors-game=gcr.io/$PROJECT_ID/rock-paper-scissors-game:$TAG
 ```
 
-This updates `kustomization.yaml` in-place — commit the change to track the deployed revision.
+This updates `kustomization.yaml` in-place — commit the result to track which image revision is deployed.
 
 ### 3. Apply
 
@@ -82,8 +82,9 @@ kubectl top pods -l app=rock-paper-scissors-game -n workloads
 
 ## Architecture
 
-- **Backend**: Go HTTP server, in-memory storage
+- **Backend**: Go HTTP server
 - **Namespace**: `workloads`
 - **Replicas**: 2, autoscaled up to 10 via HPA
 - **Security**: distroless runtime, non-root (UID 65532), read-only filesystem, dropped capabilities, `RuntimeDefault` seccomp
 - **Load balancer**: GCP external LoadBalancer
+- **Storage**: in-memory only — all game state is lost on pod restart
