@@ -1,6 +1,7 @@
 # terraform-gke-cluster
 
 [![Terraform Validation](https://github.com/idvoretskyi/terraform-gke-cluster/actions/workflows/terraform-validate.yml/badge.svg)](https://github.com/idvoretskyi/terraform-gke-cluster/actions/workflows/terraform-validate.yml)
+[![Security Scan](https://img.shields.io/badge/security-trivy-1904DA.svg)](https://github.com/aquasecurity/trivy)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.9-623CE4.svg)](https://www.terraform.io)
 [![Google Provider](https://img.shields.io/badge/google%20provider-~%3E6.0-4285F4.svg)](https://registry.terraform.io/providers/hashicorp/google/latest)
@@ -143,21 +144,21 @@ name_suffix  → var.cluster_name_suffix → gcloud container/cluster → "gke-c
 
 | Control | Description | Status |
 |---------|-------------|--------|
-| CKV_GCP_8 | Legacy metadata endpoints disabled | ✅ |
-| CKV_GCP_12 | VPC-native cluster | ✅ |
-| CKV_GCP_13 | Client certificate authentication disabled | ✅ |
-| CKV_GCP_18 | Private cluster enabled | ✅ |
-| CKV_GCP_21 | Resource labels present | ✅ |
-| CKV_GCP_25 | Network policy enabled | ✅ |
-| CKV_GCP_61 | Workload Identity enabled | ✅ |
-| CKV_GCP_65 | Auto-upgrade enabled | ✅ |
-| CKV_GCP_66 | Auto-repair enabled | ✅ |
-| CKV_GCP_67 | COS_CONTAINERD node image | ✅ |
-| CKV_GCP_68 | Secure Boot enabled | ✅ |
-| CKV_GCP_69 | Dedicated node SA / GKE_METADATA mode | ✅ |
-| CKV_GCP_70 | Shielded GKE nodes | ✅ |
-| CKV_GCP_71 | Release channel set | ✅ |
-| CKV_GCP_72 | Logging and monitoring enabled | ✅ |
+| AVD-GCP-0050 | Legacy metadata endpoints disabled | ✅ |
+| AVD-GCP-0054 | VPC-native cluster | ✅ |
+| AVD-GCP-0053 | Client certificate authentication disabled | ✅ |
+| AVD-GCP-0059 | Private cluster enabled | ✅ |
+| AVD-GCP-0055 | Resource labels present | ✅ |
+| AVD-GCP-0064 | Network policy enabled | ✅ |
+| AVD-GCP-0069 | Workload Identity enabled | ✅ |
+| AVD-GCP-0062 | Auto-upgrade enabled | ✅ |
+| AVD-GCP-0063 | Auto-repair enabled | ✅ |
+| AVD-GCP-0057 | COS_CONTAINERD node image | ✅ |
+| AVD-GCP-0071 | Secure Boot enabled | ✅ |
+| AVD-GCP-0058 | Dedicated node SA / GKE_METADATA mode | ✅ |
+| AVD-GCP-0056 | Shielded GKE nodes | ✅ |
+| AVD-GCP-0061 | Release channel set | ✅ |
+| AVD-GCP-0065 | Logging and monitoring enabled | ✅ |
 
 ## Local validation
 
@@ -171,9 +172,8 @@ terraform fmt -check -recursive
 terraform init -backend=false
 terraform validate
 
-# Security scan (requires checkov)
-pip install checkov
-checkov -d . --framework terraform
+# Security scan (requires trivy)
+trivy config .
 ```
 
 ## Cleanup
