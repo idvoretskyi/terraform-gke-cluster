@@ -17,9 +17,9 @@ variable "deletion_protection" {
 }
 
 variable "machine_type" {
-  description = "Machine type for GKE nodes."
+  description = "Machine type for GKE nodes. e2-small is the recommended minimum — e2-micro leaves too little allocatable RAM after GKE system pods."
   type        = string
-  default     = "e2-micro"
+  default     = "e2-small"
 
   validation {
     condition     = length(var.machine_type) > 0
@@ -41,7 +41,7 @@ variable "min_nodes" {
 variable "max_nodes" {
   description = "Maximum number of nodes in the node pool."
   type        = number
-  default     = 3
+  default     = 1
 
   validation {
     condition     = var.max_nodes >= 1
@@ -89,9 +89,9 @@ variable "release_channel" {
 }
 
 variable "enable_private_cluster" {
-  description = "Enable private GKE cluster (private nodes, no public node IPs)."
+  description = "Enable private GKE cluster (private nodes, no public node IPs). Requires Cloud NAT for internet egress, which adds ~$32+/mo. Disabled by default to keep costs under $10/mo."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_private_endpoint" {
@@ -172,4 +172,22 @@ variable "resource_labels" {
   description = "Additional resource labels. These override module defaults when keys conflict."
   type        = map(string)
   default     = {}
+}
+
+variable "enable_vpc_flow_logs" {
+  description = "Enable VPC Flow Logs on the node subnet (CIS 5.6.8). Adds metered cost per GB ingested. Disabled by default to keep costs under $10/mo."
+  type        = bool
+  default     = false
+}
+
+variable "enable_managed_prometheus" {
+  description = "Enable Google Cloud Managed Service for Prometheus. Adds metered cost per sample ingested. Disabled by default to keep costs under $10/mo."
+  type        = bool
+  default     = false
+}
+
+variable "enable_workload_logging" {
+  description = "Ship workload (application) logs to Cloud Logging in addition to system component logs. Adds metered cost beyond the free tier. Disabled by default to keep costs under $10/mo."
+  type        = bool
+  default     = false
 }

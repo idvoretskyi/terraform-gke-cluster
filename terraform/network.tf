@@ -15,11 +15,15 @@ resource "google_compute_subnetwork" "subnet" {
 
   private_ip_google_access = true
 
-  # CIS 5.6.8
-  log_config {
-    aggregation_interval = "INTERVAL_10_MIN"
-    flow_sampling        = 0.5
-    metadata             = "INCLUDE_ALL_METADATA"
+  # CIS 5.6.8 — opt-in; disabled by default to avoid metered ingestion cost.
+  # Enable by setting enable_vpc_flow_logs = true.
+  dynamic "log_config" {
+    for_each = var.enable_vpc_flow_logs ? [1] : []
+    content {
+      aggregation_interval = "INTERVAL_10_MIN"
+      flow_sampling        = 0.5
+      metadata             = "INCLUDE_ALL_METADATA"
+    }
   }
 
   secondary_ip_range {

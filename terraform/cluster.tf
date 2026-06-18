@@ -84,7 +84,10 @@ resource "google_container_cluster" "primary" {
 
   # CIS 5.6.8
   logging_config {
-    enable_components = ["SYSTEM_COMPONENTS", "WORKLOADS"]
+    enable_components = compact([
+      "SYSTEM_COMPONENTS",
+      var.enable_workload_logging ? "WORKLOADS" : "",
+    ])
   }
 
   # CIS 5.6.9
@@ -97,7 +100,7 @@ resource "google_container_cluster" "primary" {
     ]
 
     managed_prometheus {
-      enabled = true
+      enabled = var.enable_managed_prometheus
     }
   }
 
