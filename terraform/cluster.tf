@@ -28,7 +28,7 @@ resource "google_container_cluster" "primary" {
       mode = "GKE_METADATA"
     }
     shielded_instance_config {
-      enable_secure_boot          = true
+      enable_secure_boot          = false # bootstrap node only; actual node pool uses true (node_pool.tf)
       enable_integrity_monitoring = true
     }
   }
@@ -128,17 +128,7 @@ resource "google_container_cluster" "primary" {
   }
 
   cluster_autoscaling {
-    enabled = true
-    resource_limits {
-      resource_type = "cpu"
-      minimum       = 1
-      maximum       = 100
-    }
-    resource_limits {
-      resource_type = "memory"
-      minimum       = 1
-      maximum       = 1000
-    }
+    enabled = false
   }
 
   # CIS 5.8.1
